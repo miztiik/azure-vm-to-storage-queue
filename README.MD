@@ -11,7 +11,7 @@ They heard that Azure offers capabilities to build event-driven architectures us
 We can have our producers leverage Azure Storage Queue<sup>[1]</sup> to persist the store event messages. The consumers can process them at their own pace. The producers can also set the `time-to-live` on the messages for time sensitive messages. But remember that Azure Storage Queue does not gurantee FIFO(aka First In, First out) ordering of messages. We will use the Azure Python SDK<sup>[2],[6],[7],[8]</sup> for producing and consuming our messages. We will control access to your queue using RBAC for queue<sup>[3]
 
 
-![Miztiik Automaton: Publish & Subscribe with Azure Storage Queues](images/miztiik_automation_azure_vm_to_storage_queue_architecture_001.png)
+![Miztiik Automaton: Publish & Subscribe with Azure Storage Queues](images/miztiik_automation_azure_vm_to_storage_queue_architecture_0001.png)
 
 1. ## 🧰 Prerequisites
 
