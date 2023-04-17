@@ -1,37 +1,17 @@
-# Azure Virtual Machine Access To Blob Storage With User Identity
+# Publish & Subscribe with Azure Storage Queues
 
-The developer at Mystique Unicorn are looking for a way store their order events coming from their stores across the world. They are currently using Azure Blob storage for their data lake and would like to store these events there.  A sample of the event is shown below. 
+The developer at Mystique Unicorn are interested in building their application using event-driven architectural pattern to process streaming data. For those who are unfamiliar, An event-driven architecture uses events to trigger and communicate between decoupled services and is common in modern applications built with microservices. An event is a change in state, or an update, like an item being placed in a shopping cart on an e-commerce website.
 
-```json
-{
-    "request_id": "fef1127f-65df-4bca-bc58-e102fb65ee70",
-    "store_id": 6,
-    "store_fqdn": "m-web-srv-011.internal.cloudapp.net",
-    "store_ip": "10.0.0.4",
-    "cust_id": 989,
-    "category": "Laptops",
-    "sku": 126551,
-    "price": 10.61,
-    "qty": 6,
-    "discount": 2.7,
-    "gift_wrap": false,
-    "variant": "black",
-    "priority_shipping": true,
-    "ts": "2023-04-10T16:25:04.411091",
-    "contact_me": "github.com/miztiik"
-}
-```
+In this application, they will have their physical stores, send a stream sales and inventory related events to a central location, where multiple downstream systems will consume these events. For example, An event for a new order will be consumed by the warehouse system and the sales events will be used by the marketing department to generate revenue and forecast reports. This pattern of separating the produce, router and consumer to independent components allows them to scale the applications without constraints.
 
-They would like to store the data by date so that they can query them easily. For example query the sales across stores based on store id on a given date. 
-
-Can you show them how the can get started? 
+They heard that Azure offers capabilities to build event-driven architectures using kubernetes, Can you show them how they can get started? 
 
 ## 🎯 Solutions
 
-To store all the order events, we will create a blob container. To write the events to the container, lets use a user managed identity with it permission scoped narrowly to a specific blob conainer using Azure RBAC.<sup>[1], [2], [3]</sup>.
+We can have our producers leverage Azure Storage Queue<sup>[1]</sup> to persist the store event messages. The consumers can process them at their own pace. The producers can also set the `time-to-live` on the messages for time sensitive messages. But remember that Azure Storage Queue does not gurantee FIFO(aka First In, First out) ordering of messages.
 
 
-![Miztiik Automaton: Azure Virtual Machine Access To Blob Storage With User Identity](images/miztiik_automation_azure_vm_to_blob_storage_architecture_001.png)
+![Miztiik Automaton: Publish & Subscribe with Azure Storage Queues](images/miztiik_automation_azure_vm_to_storage_queue_architecture_001.png)
 
 1. ## 🧰 Prerequisites
 
@@ -46,8 +26,8 @@ To store all the order events, we will create a blob container. To write the eve
    - Get the application code
 
      ```bash
-     git clone https://github.com/miztiik/azure-vm-to-blob-storage
-     cd azure-vm-to-blob-storage
+     git clone https://github.com/miztiik/azure-vm-to-storage-queue
+     cd azure-vm-to-storage-queue
      ```
 
 1. ## 🚀 Prepare the environment
@@ -83,16 +63,28 @@ To store all the order events, we will create a blob container. To write the eve
    Let us walk through each of the stacks,
 
    - **Stack: Main Bicep**
-     The params required for the modules are in `params.json`. Do modify them to suit your need.(_Especially the `adminPassword.secureString` for the VM. You are strongly encouraged to Just-In-Time access or use SSH key instead of password based authentication_). The helper deployment script `deploy.sh` will deploy the `main.bicep` file. This will create the following resoureces
+     The params required for the modules are in `params.json`. Do modify them to suit your need.(_Especially the `adminPassword.secureString` for the VM. You are strongly encouraged to Just-In-Time access<sup>[5]</sup> or use SSH key instead of password based authentication_). The helper deployment script `deploy.sh` will deploy the `main.bicep` file. This will create the following resoureces
      - Resource Group(RG)
      - VNet, Subnet & Virtual Machine
      - Virtual Machine(Ubuntu)
-        - (_WIP_)Bootstrapped with custom libs using `userData` script.
+        - Bootstrapped with custom libs using `userData` script.
      - Storage Account - `warehouseXXXX`
-        - Blob Container - `store-events-xxx`
+        - Blob Container - `store-events-blob-xxx`
+        - Storage Queue - `store-events-q-xxx`
+      - App Config
+        - The application configs to be used by producers & consumers
+          - Storage account, Blob Name, Queue Name
      - User Managed Identity
-        - Scoped with contributor privileges with conditional access restricting to a container, (_For ex `store-events-xxx`_)
-      - Identity attached to the VM
+        - Scoped with contributor privileges with conditional access restricting to a Blob, Queue & App Config
+        - Identity attached to the VM
+      - Log Anayltics Workspace
+        - Data Collection Endpoint
+        - Data Collection Rule
+          - Attached to VM
+
+      ```bash
+      sh deploy.sh
+      ```
 
      After successfully deploying the stack, Check the `Resource Groups/Deployments` section for the resources.
 
@@ -101,23 +93,22 @@ To store all the order events, we will create a blob container. To write the eve
 
    - **Connect to the VM**
 
-      The Ubuntu vm _should_ be bootstrapped using `userData` to install python3, git and also Azure Blob Storage Client Library<sup>[4]</sup>. (_For some reason the userData, bootstrap script fails, [Let me know if know how to fix it](/issues))
-
+      The Ubuntu vm _should_ be bootstrapped using `userData` to install python3, git and also Azure SDK for Idenity, Blob & Queue.
       - Connect to the using using Just In Time Access<sup>[5]</sup>.
-      - Copy the `az_producer.py` to the server.
-      - The python script expects the storage account name (`SA_NAME`) and blob container name (`CONTAINER_NAME`) as environment variables. We need to set them before execution.(_Update to your values in the below code_)
+      - The bootstrap code should have clone this repo to `/var/log/azure-vm-to-storage-queue`, If not clone the repo.
+      - The `az_producer_forqueue.py` script expects `APP_CONFIG_NAME` Store as an environment variable
 
-        ```bash
-        ssh miztiik@publicIP
-        git clone https://github.com/miztiik/azure-vm-to-blob-storage
-        cd azure-vm-to-blob-storage
+      ```bash
+      # ssh miztiik@publicIP
+      # git clone https://github.com/miztiik/azure-vm-to-storage-queue
+      # cd azure-vm-to-storage-queue
 
-        # If pre-reqs have not been installed, run the bootstrap script manually
-        # bash /var/azure-vm-to-blob-storage/modules/vm/bootstrap_scripts/deploy_app.sh
-        export SA_NAME="warehouse4moddm014"
-        export CONTAINER_NAME="store-events-014"
-        python3 /var/azure-vm-to-blob-storage/app/az_producer.py
-        ```
+      # If pre-reqs have not been installed, run the bootstrap script manually
+      # bash /var/azure-vm-to-storage-queue/modules/vm/bootstrap_scripts/deploy_app.sh
+      
+      export APP_CONFIG_NAME="store-events-011"
+      python3 /var/azure-vm-to-storage-queue/app/az_producer_for_queues.py
+      ```
 
         If everything goes all right, you should see messages like this,
 
@@ -238,7 +229,7 @@ Thank you for your interest in contributing to our project. Whether it is a bug 
 [2]: https://learn.microsoft.com/en-us/azure/storage/queues/storage-python-how-to-use-queue-storage
 [3]: 
 [4]: 
-[5]: 
+[5]: https://learn.microsoft.com/en-us/azure/defender-for-cloud/just-in-time-access-usage
 [6]: https://github.com/Azure/azure-sdk-for-python/tree/azure-storage-queue_12.6.0/sdk/storage/azure-storage-queue/samples
 [7]: https://learn.microsoft.com/en-us/python/api/azure-storage-queue/azure.storage.queue.queueclient?view=azure-python#azure-storage-queue-queueclient-send-message
 [8]: https://learn.microsoft.com/en-us/python/api/azure-storage-queue/azure.storage.queue.queuemessage?view=azure-python

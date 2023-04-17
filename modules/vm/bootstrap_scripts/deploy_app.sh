@@ -113,8 +113,9 @@ function check_execution(){
 check_execution                 | tee -a "${LOG_FILE}"
 install_libs_on_ubuntu          | tee -a "${LOG_FILE}"
 install_azure_python_sdk        | tee -a "${LOG_FILE}"
+clone_git_repo                  | tee -a "${LOG_FILE}"
 log_this "bootstrap_success:yes" | tee -a "${LOG_FILE}"
-# clone_git_repo                  | tee -a "${LOG_FILE}"
+
 
 
 

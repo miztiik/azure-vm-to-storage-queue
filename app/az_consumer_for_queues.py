@@ -19,12 +19,9 @@ class GlobalArgs:
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
     EVNT_WEIGHTS = {"success": 80, "fail": 20}
     WAIT_SECS_BETWEEN_MSGS = int(os.getenv("WAIT_SECS_BETWEEN_MSGS", 0))
-    TOT_MSGS_TO_PRODUCE = int(os.getenv("TOT_MSGS_TO_PRODUCE", 2))
+    TOT_MSGS_TO_PRODUCE = int(os.getenv("TOT_MSGS_TO_PRODUCE", 10000))
     BLOB_PREFIX = "sales_events"
-    APP_CONFIG_URL = f"https://store-events-config-009.azconfig.io"
-    # APP_CONFIG_URL = os.getenv("Q_NAME", "APP_CONFIG_URL")
-    # APP_CONFIG_URL = f"https://{APP_CONFIG_NAME}.azconfig.io"
-
+    APP_CONFIG_NAME=os.getenv("APP_CONFIG_NAME", "store-events-config-011")
     # SA_NAME = os.getenv("SA_NAME", "warehouse7rfk2o005")
     # BLOB_NAME = os.getenv("BLOB_NAME", "store-events-blob-005")
     # Q_NAME = os.getenv("Q_NAME", "store-events-q-005")
@@ -58,10 +55,14 @@ def _gen_uuid():
 
 def _get_n_set_app_config(credential):
     try:
+        GlobalArgs.APP_CONFIG_URL= f"https://{GlobalArgs.APP_CONFIG_NAME}.azconfig.io"
+
         client = AzureAppConfigurationClient(GlobalArgs.APP_CONFIG_URL, credential=credential)
+        
         GlobalArgs.SA_NAME = client.get_configuration_setting(key="saName").value
         GlobalArgs.BLOB_NAME = client.get_configuration_setting(key="blobName").value
         GlobalArgs.Q_NAME= client.get_configuration_setting(key="queueName").value
+
         GlobalArgs.BLOB_SVC_ACCOUNT_URL= f"https://{GlobalArgs.SA_NAME}.blob.core.windows.net"
         GlobalArgs.Q_SVC_ACCOUNT_URL= f"https://{GlobalArgs.SA_NAME}.queue.core.windows.net"
     except Exception as e:
