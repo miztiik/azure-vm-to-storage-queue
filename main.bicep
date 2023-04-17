@@ -3,7 +3,9 @@ targetScope = 'subscription'
 // Parameters
 param deploymentParams object
 param rgParams object
+param appConfigParams object
 param storageAccountParams object
+param storageQueueParams object
 param logAnalyticsWorkspaceParams object
 param dceParams object
 param vnetParams object
@@ -28,6 +30,28 @@ module r_rg 'modules/resource_group/create_rg.bicep' = {
   }
 }
 
+// Create Key Vault
+module r_kv 'modules/keyvault/create_kv.bicep' = {
+  scope: resourceGroup(r_rg.name)
+  name: '${storageAccountParams.storageAccountNamePrefix}_${deploymentParams.global_uniqueness}_Kv'
+  params: {
+    deploymentParams:deploymentParams
+    kvNamePrefix:'storeEventsKv'
+    tags: tags
+  }
+}
+
+//Create App Config
+module r_appConfig 'modules/app_config/create_app_config.bicep' = {
+  scope: resourceGroup(r_rg.name)
+  name: '${storageAccountParams.storageAccountNamePrefix}_${deploymentParams.global_uniqueness}_Config'
+  params: {
+    deploymentParams:deploymentParams
+    appConfigParams: appConfigParams
+    tags: tags
+  }
+}
+
 // Create Storage Account
 module r_sa 'modules/storage/create_storage_account.bicep' = {
   scope: resourceGroup(r_rg.name)
@@ -35,8 +59,42 @@ module r_sa 'modules/storage/create_storage_account.bicep' = {
   params: {
     deploymentParams:deploymentParams
     storageAccountParams:storageAccountParams
+    appConfigName: r_appConfig.outputs.appConfigName
     tags: tags
   }
+}
+
+
+// Create Storage Account - Blob container
+module r_blob 'modules/storage/create_blob.bicep' = {
+  scope: resourceGroup(r_rg.name)
+  name: '${storageAccountParams.storageAccountNamePrefix}_${deploymentParams.global_uniqueness}_Blob'
+  params: {
+    deploymentParams:deploymentParams
+    storageAccountParams:storageAccountParams
+    storageAccountName: r_sa.outputs.saName
+    appConfigName: r_appConfig.outputs.appConfigName
+    tags: tags
+  }
+  dependsOn: [
+    r_sa
+  ]
+}
+
+// Create Storage Queue
+module r_storageQueue 'modules/storage/create_storage_queue.bicep' = {
+  scope: resourceGroup(r_rg.name)
+  name: '${storageAccountParams.storageAccountNamePrefix}_${deploymentParams.global_uniqueness}_Sq'
+  params: {
+    deploymentParams:deploymentParams
+    storageQueueParams:storageQueueParams
+    storageAccountName: r_sa.outputs.saName
+    appConfigName: r_appConfig.outputs.appConfigName
+    tags: tags
+  }
+  dependsOn: [
+    r_sa
+  ]
 }
 
 // Crate VNets
@@ -59,15 +117,17 @@ module r_vm 'modules/vm/create_vm.bicep' = {
   name: '${vmParams.vmNamePrefix}_${deploymentParams.global_uniqueness}_Vm'
   params: {
     deploymentParams:deploymentParams
-    vmParams: vmParams
-    vnetName: r_vnet.outputs.vnetName
-    saName: r_sa.outputs.saName
 
-    blobContainerName: r_sa.outputs.blobContainerName
+    saName: r_sa.outputs.saName
+    blobContainerName: r_blob.outputs.blobContainerName
     saPrimaryEndpointsBlob: r_sa.outputs.saPrimaryEndpointsBlob
 
-    linDataCollectionEndpointId: r_dataCollectionEndpoint.outputs.linDataCollectionEndpointId
+    queueName: r_storageQueue.outputs.queueName
+    appConfigName: r_appConfig.outputs.appConfigName
 
+    vmParams: vmParams
+    vnetName: r_vnet.outputs.vnetName
+    linDataCollectionEndpointId: r_dataCollectionEndpoint.outputs.linDataCollectionEndpointId
     storeEventsDcrId: r_dataCollectionRule.outputs.storeEventsDcrId
     automationEventsDcrId: r_dataCollectionRule.outputs.automationEventsDcrId
     tags: tags
@@ -108,6 +168,8 @@ module r_dataCollectionRule 'modules/monitor/data_collection_rule.bicep' = {
   params: {
     deploymentParams:deploymentParams
     osKind: 'Linux'
+    tags: tags
+
     storeEventsRuleName: 'webStoreDcr'
     storeEventsLogFilePattern: '/var/log/miztiik*.json'
     storeEventscustomTableNamePrefix: r_logAnalyticsWorkspace.outputs.storeEventsCustomTableNamePrefix
@@ -119,10 +181,12 @@ module r_dataCollectionRule 'modules/monitor/data_collection_rule.bicep' = {
     linDataCollectionEndpointId: r_dataCollectionEndpoint.outputs.linDataCollectionEndpointId
     logAnalyticsPayGWorkspaceName:r_logAnalyticsWorkspace.outputs.logAnalyticsPayGWorkspaceName
     logAnalyticsPayGWorkspaceId:r_logAnalyticsWorkspace.outputs.logAnalyticsPayGWorkspaceId
-    tags: tags
+
   }
   dependsOn: [
     r_logAnalyticsWorkspace
   ]
 }
+
+
 
