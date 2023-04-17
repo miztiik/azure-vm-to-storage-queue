@@ -8,7 +8,7 @@ They heard that Azure offers capabilities to build event-driven architectures us
 
 ## 🎯 Solutions
 
-We can have our producers leverage Azure Storage Queue<sup>[1]</sup> to persist the store event messages. The consumers can process them at their own pace. The producers can also set the `time-to-live` on the messages for time sensitive messages. But remember that Azure Storage Queue does not gurantee FIFO(aka First In, First out) ordering of messages. We will use the Azure Python SDK<sup>[2]</sup> for producing and consuming our messages. We will control access to your queue using RBAC for queue<sup>[3]
+We can have our producers leverage Azure Storage Queue<sup>[1]</sup> to persist the store event messages. The consumers can process them at their own pace. The producers can also set the `time-to-live` on the messages for time sensitive messages. But remember that Azure Storage Queue does not gurantee FIFO(aka First In, First out) ordering of messages. We will use the Azure Python SDK<sup>[2],[6],[7],[8]</sup> for producing and consuming our messages. We will control access to your queue using RBAC for queue<sup>[3]
 
 
 ![Miztiik Automaton: Publish & Subscribe with Azure Storage Queues](images/miztiik_automation_azure_vm_to_storage_queue_architecture_001.png)
@@ -234,7 +234,7 @@ Thank you for your interest in contributing to our project. Whether it is a bug 
 1. [Azure Docs: Azure Storage Queue][1]
 1. [Azure Docs: Send & Receive from Queue with Python][2]
 1. [Azure Docs: Azure RBAC Role for Queue][3]
-1. [Azure Docs: Azure Blob Storage client library for Python][4]
+1. [Azure Docs: Azure RBAC-ABAC Limitations][4]
 1. [Azure Docs: Just In Time Access][5]
 1. [Azure Docs: Python Queue Sample Code][6]
 1. [Azure Docs: Python Queue Client Class][7]
@@ -244,14 +244,14 @@ Thank you for your interest in contributing to our project. Whether it is a bug 
 
 ### 🏷️ Metadata
 
-![miztiik-success-green](https://img.shields.io/badge/Miztiik:Automation:Level-200-blue)
+![miztiik-success-green](https://img.shields.io/badge/Miztiik:Automation:Level-300-purple)
 
-**Level**: 200
+**Level**: 300
 
 [1]: https://learn.microsoft.com/en-us/azure/storage/queues/storage-queues-introduction
 [2]: https://learn.microsoft.com/en-us/azure/storage/queues/storage-python-how-to-use-queue-storage
 [3]: https://learn.microsoft.com/en-us/azure/storage/queues/assign-azure-role-data-access
-[4]: 
+[4]: https://learn.microsoft.com/en-us/azure/storage/common/authorize-data-access#status-of-condition-features-in-azure-storage
 [5]: https://learn.microsoft.com/en-us/azure/defender-for-cloud/just-in-time-access-usage
 [6]: https://github.com/Azure/azure-sdk-for-python/tree/azure-storage-queue_12.6.0/sdk/storage/azure-storage-queue/samples
 [7]: https://learn.microsoft.com/en-us/python/api/azure-storage-queue/azure.storage.queue.queueclient?view=azure-python#azure-storage-queue-queueclient-send-message
