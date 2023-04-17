@@ -18,7 +18,7 @@ class GlobalArgs:
     VERSION = "2023-04-17"
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
     EVNT_WEIGHTS = {"success": 80, "fail": 20}
-    WAIT_SECS_BETWEEN_MSGS = int(os.getenv("WAIT_SECS_BETWEEN_MSGS", 0))
+    WAIT_SECS_BETWEEN_MSGS = int(os.getenv("WAIT_SECS_BETWEEN_MSGS", 5))
     TOT_MSGS_TO_PRODUCE = int(os.getenv("TOT_MSGS_TO_PRODUCE", 10000))
     BLOB_PREFIX = "sales_events"
     APP_CONFIG_NAME=os.getenv("APP_CONFIG_NAME", "store-events-config-011")

@@ -8,7 +8,7 @@ They heard that Azure offers capabilities to build event-driven architectures us
 
 ## 🎯 Solutions
 
-We can have our producers leverage Azure Storage Queue<sup>[1]</sup> to persist the store event messages. The consumers can process them at their own pace. The producers can also set the `time-to-live` on the messages for time sensitive messages. But remember that Azure Storage Queue does not gurantee FIFO(aka First In, First out) ordering of messages.
+We can have our producers leverage Azure Storage Queue<sup>[1]</sup> to persist the store event messages. The consumers can process them at their own pace. The producers can also set the `time-to-live` on the messages for time sensitive messages. But remember that Azure Storage Queue does not gurantee FIFO(aka First In, First out) ordering of messages. We will use the Azure Python SDK<sup>[2]</sup> for producing and consuming our messages. We will control access to your queue using RBAC for queue<sup>[3]
 
 
 ![Miztiik Automaton: Publish & Subscribe with Azure Storage Queues](images/miztiik_automation_azure_vm_to_storage_queue_architecture_001.png)
@@ -95,49 +95,72 @@ We can have our producers leverage Azure Storage Queue<sup>[1]</sup> to persist 
 
       The Ubuntu vm _should_ be bootstrapped using `userData` to install python3, git and also Azure SDK for Idenity, Blob & Queue.
       - Connect to the using using Just In Time Access<sup>[5]</sup>.
-      - The bootstrap code should have clone this repo to `/var/log/azure-vm-to-storage-queue`, If not clone the repo.
+      - The bootstrap code should have clone this repo to `/var/azure-vm-to-storage-queue`, If not clone the repo.
       - The `az_producer_forqueue.py` script expects `APP_CONFIG_NAME` Store as an environment variable
+
+    - **Producer**
 
       ```bash
       # ssh miztiik@publicIP
+      # cd /var/
       # git clone https://github.com/miztiik/azure-vm-to-storage-queue
       # cd azure-vm-to-storage-queue
 
       # If pre-reqs have not been installed, run the bootstrap script manually
       # bash /var/azure-vm-to-storage-queue/modules/vm/bootstrap_scripts/deploy_app.sh
       
-      export APP_CONFIG_NAME="store-events-011"
-      python3 /var/azure-vm-to-storage-queue/app/az_producer_for_queues.py
+      export APP_CONFIG_NAME="store-events-config-011"
+      python3 /var/azure-vm-to-storage-queue/app/az_producer_for_queues.py &
       ```
 
-        If everything goes all right, you should see messages like this,
+        If everything goes all right, you should see messages like below. You can also check the logs at `/var/log/miztiik-store-events-2023-04-17.json`
 
         ```bash
-        INFO:azure.core.pipeline.policies.http_logging_policy:Request URL: 'https://warehouse4moddm014.blob.core.windows.net/store-events-014/sales_events/dt%3D2023_04_10/1681153081463131.json'
-        Request method: 'PUT'
-        Request headers:
-            'Content-Length': '386'
-            'x-ms-blob-type': 'REDACTED'
-            'If-None-Match': '*'
-            'x-ms-version': 'REDACTED'
-            'Content-Type': 'application/octet-stream'
-            'Accept': 'application/xml'
-            'Last-Modified': 'Mon, 10 Apr 2023 18:58:01 GMT'
-            'ETag': '"0x8DB39F5820D3CEA"'
-            'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
-            'x-ms-request-id': 'ded43899-001e-0019-62de-6bf3bd000000'
-            'x-ms-client-request-id': '9dd7975a-d7d1-11ed-82ed-0bcd26fbfe68'
-            'x-ms-version': 'REDACTED'
-            'x-ms-content-crc64': 'REDACTED'
-            'x-ms-request-server-encrypted': 'REDACTED'
-            'Date': 'Mon, 10 Apr 2023 18:58:00 GMT'
-        INFO:root:Blob sales_events/dt=2023_04_10/1681153081463131.json uploaded successfully
+        INFO:root:{
+            "request_id": "80745806-7378-439e-9707-12d485236d54",
+            "store_id": 6,
+            "store_fqdn": "m-web-srv-011.internal.cloudapp.net",
+            "store_ip": "10.0.0.4",
+            "cust_id": 103,
+            "category": "Furniture",
+            "sku": 95894,
+            "price": 43.43,
+            "qty": 32,
+            "discount": 4.1,
+            "gift_wrap": false,
+            "variant": "black",
+            "priority_shipping": true,
+            "ts": "2023-04-17T12:56:35.868661",
+            "contact_me": "github.com/miztiik",
+            "is_return": true
+        }
+        INFO:root:Message added to store-events-q-011 successfully
         ```
 
-      The script should create store events and write them to Blob container. The path should be something like this `store-events-014/sales_events/dt=2023_04_10/1681153079333515.json`
+      The script should create and publish the events to storage queue.
 
-      ![Miztiik Automaton: Azure Virtual Machine Access To Blob Storage With User Identity](images/miztiik_automation_azure_vm_to_blob_storage_architecture_002.png)
+      ![Miztiik Automaton: Publish & Subscribe with Azure Storage Queues](images/miztiik_automation_azure_vm_to_storage_queue_architecture_002.png)
 
+      - **Consumer**
+        The consumer will read a maximum of `5` messages from the queue and write the events to blob storage and then delete the messages from the queue. The `az_consumer_for_queues.py` script expects `APP_CONFIG_NAME` Store as an environment variable
+
+        ```bash
+        export APP_CONFIG_NAME="store-events-config-011"
+        python3 /var/azure-vm-to-storage-queue/app/az_consumer_for_queues.py &
+        ```
+
+        If everything goes all right, you should see messages like below. You can also check the logs at `/var/log/miztiik-store-events-2023-04-17.json`
+
+        ```bash
+        INFO:root:Message received from store-events-q-011
+        INFO:root:{
+            "request_id": "80745806-7378-439e-9707-12d485236d54",
+            "store_id": 6,
+            "store_fqdn": "m-web-srv-011.internal.cloudapp.net",
+            "store_ip": "
+        ```
+      ![Miztiik Automaton: Publish & Subscribe with Azure Storage Queues](images/miztiik_automation_azure_vm_to_storage_queue_architecture_003.png)
+      ![Miztiik Automaton: Publish & Subscribe with Azure Storage Queues](images/miztiik_automation_azure_vm_to_storage_queue_architecture_004.png)
 
   1. **Troubleshooting Azure Monitor Agent**
 
@@ -175,7 +198,7 @@ We can have our producers leverage Azure Storage Queue<sup>[1]</sup> to persist 
       
 1. ## 📒 Conclusion
 
-    Here we have demonstrated how to store files or byte stream data to Azure Blob Containers. You can extend the solution to setup trigger in blob conatiners to further process these events.
+    Here we have demonstrated how to store use Azure Storage Queue to publish and subscribe to events. You can extend the solution to setup trigger in blob conatiners to further process these events or notify other consumers.
   
 
 1. ## 🧹 CleanUp
@@ -210,7 +233,7 @@ Thank you for your interest in contributing to our project. Whether it is a bug 
 
 1. [Azure Docs: Azure Storage Queue][1]
 1. [Azure Docs: Send & Receive from Queue with Python][2]
-1. [Azure Docs: Azure RBAC Example Conditions][3]
+1. [Azure Docs: Azure RBAC Role for Queue][3]
 1. [Azure Docs: Azure Blob Storage client library for Python][4]
 1. [Azure Docs: Just In Time Access][5]
 1. [Azure Docs: Python Queue Sample Code][6]
@@ -227,7 +250,7 @@ Thank you for your interest in contributing to our project. Whether it is a bug 
 
 [1]: https://learn.microsoft.com/en-us/azure/storage/queues/storage-queues-introduction
 [2]: https://learn.microsoft.com/en-us/azure/storage/queues/storage-python-how-to-use-queue-storage
-[3]: 
+[3]: https://learn.microsoft.com/en-us/azure/storage/queues/assign-azure-role-data-access
 [4]: 
 [5]: https://learn.microsoft.com/en-us/azure/defender-for-cloud/just-in-time-access-usage
 [6]: https://github.com/Azure/azure-sdk-for-python/tree/azure-storage-queue_12.6.0/sdk/storage/azure-storage-queue/samples
